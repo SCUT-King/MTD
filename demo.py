@@ -7,10 +7,10 @@ import random
 #01 walking
 def direction_walking(origin,destination,output,key):
     url=f'https://restapi.amap.com/v3/direction/walking?origin={origin}&destination={destination}&output={output}&key={key}'
-    print(url)
+    #print(url)
     response = requests.get(url)
     data = response.json()
-    print(data)
+    #print(data)
     # 处理 JSON 数据
     status=data['status'] #值为0或1 1：成功；0：失败
     info=data['info'] #	status为0时，info返回错误原；否则返回“OK”。详情参阅info状态表
@@ -32,7 +32,6 @@ def direction_walking(origin,destination,output,key):
         for step in steps:
             step_polyline=step['polyline']	#此路段坐标点
             polyline.extend(step_polyline.split(';'))
-        print(polyline)
         polylines.append(polyline)
         steps=";".join(polyline)
         path={
@@ -46,10 +45,10 @@ def direction_walking(origin,destination,output,key):
 #02 transit
 def direction_transit(origin,destination,output,city,key):
     url=f'https://restapi.amap.com/v3/direction/transit/integrated?key={key}&origin={origin}&destination={destination}&output={output}&city={city}&cityd={city}&strategy=0&nightflag=0'
-    print(url)
+    #print(url)
     response = requests.get(url)
     data = response.json()
-    print(data)
+    #print(data)
     # 处理 JSON 数据
     status=data['status'] #值为0或1 1：成功；0：失败
     info=data['info'] #	status为0时，info返回错误原；否则返回“OK”。详情参阅info状态表
@@ -85,10 +84,10 @@ def direction_transit(origin,destination,output,city,key):
 #03 driving
 def direction_driving(origin,destination,output,key,strategy):
     url=f'https://restapi.amap.com/v3/direction/driving?origin={origin}&destination={destination}&output={output}&key={key}&strategy={strategy}&waypoints=&extensions=base'
-    print(url)
+    #print(url)
     response = requests.get(url)
     data = response.json()
-    print(data)
+    #print(data)
     # 处理 JSON 数据
     status=data['status'] #值为0或1 1：成功；0：失败
     info=data['info'] #	status为0时，info返回错误原；否则返回“OK”。详情参阅info状态表
@@ -114,7 +113,6 @@ def direction_driving(origin,destination,output,key,strategy):
         for step in steps:
             step_polyline=step['polyline']	#此路段坐标点
             polyline.extend(step_polyline.split(';'))
-        print(polyline)
         steps = ";".join(polyline)
         path = {
             "distance": distance,
@@ -127,10 +125,10 @@ def direction_driving(origin,destination,output,key,strategy):
 #04 bicycling
 def direction_bicycling(origin,destination,output,key):
     url=f'https://restapi.amap.com/v4/direction/bicycling?origin={origin}&destination={destination}&key={key}'
-    print(url)
+    #print(url)
     response = requests.get(url)
     data = response.json()
-    print(data)
+    #print(data)
     # 处理 JSON 数据
     errcode=data['errcode'] #0，表示成功
     errdetail=data['errdetail']
@@ -153,7 +151,6 @@ def direction_bicycling(origin,destination,output,key):
             step_instruction=step['instruction']	#此路段骑行指示
             polyline.extend(step_polyline.split(';'))
             instruction.append(step_instruction)
-        print(instruction)
         steps = ";".join(polyline)
         path = {
             "distance": distance,
@@ -203,7 +200,6 @@ def generate_data():
             "driving_data": driving_data,
             "bicycling_data": bicycling_data
         }
-        print('--------------------')
         print(data)
         with open("data.json", "a") as file:
             json.dump(data, file)
