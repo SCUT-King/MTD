@@ -1,5 +1,5 @@
 import time
-
+import math
 import requests
 import json
 from datetime import datetime
@@ -160,22 +160,78 @@ def direction_bicycling(origin,destination,output,key):
         mypaths.append(path)
     return {"origin":origin,"destination":destination,"way":"bicycling",
              "info":errmsg,"paths":mypaths}
-def generate_point():
-    # 广州市番禺区的经度范围
-    longitude_range = (113.2, 113.4)
-    # 广州市番禺区的纬度范围
-    latitude_range = (22.9, 23.1)
-    # 生成随机经度
-    longitude = round(random.uniform(*longitude_range), 6)
-    # 生成随机纬度
-    latitude = round(random.uniform(*latitude_range), 6)
-    # 返回经纬度坐标
-    return f'{longitude},{latitude}'
+def calculate_distance(lat1, lon1, lat2, lon2):
+    # 将经纬度转换为弧度
+    lat1 = math.radians(lat1)
+    lon1 = math.radians(lon1)
+    lat2 = math.radians(lat2)
+    lon2 = math.radians(lon2)
+
+    # 应用 Haversine 公式计算距离
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1
+    a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+    distance = 6371 * c  # 地球平均半径为6371公里
+    return distance
+
+def generate_random_point(center_lat, center_lon, max_distance):
+    # 将中心点的经纬度转换为弧度
+    center_lat_rad = math.radians(center_lat)
+    center_lon_rad = math.radians(center_lon)
+
+    # 将最大距离转换为弧度
+    max_distance_rad = max_distance / 6371  # 6371是地球平均半径
+
+    random_distance_rad = math.sqrt(random.uniform(0, 1)) * max_distance_rad
+    random_bearing_rad = random.uniform(0, 2*math.pi)
+
+    # 计算随机点的纬度和经度
+    random_lat_rad = math.asin(math.sin(center_lat_rad) * math.cos(random_distance_rad) +
+                               math.cos(center_lat_rad) * math.sin(random_distance_rad) * math.cos(random_bearing_rad))
+    random_lon_rad = center_lon_rad + math.atan2(math.sin(random_bearing_rad) * math.sin(random_distance_rad) * math.cos(center_lat_rad),
+                                                 math.cos(random_distance_rad) - math.sin(center_lat_rad) * math.sin(random_lat_rad))
+
+    # 将随机点的纬度和经度转换为度数
+    random_lat = math.degrees(random_lat_rad)
+    random_lon = math.degrees(random_lon_rad)
+
+    return random_lat, random_lon
+def generate_od_pair():
+    # #以珠江新城为中心，半径5公里
+    center_lat = 23.1192
+    center_lon = 113.3212
+
+    # 生成500个距离中心点5公里以内的随机点,作为起点
+    origin_points = [] # 起点
+    od_pair={}        # od对
+    max_distance = 5  # 最大距离为5公里
+    min_distance = 1  # 起点终点之间相距最小距离1公里
+    while len(origin_points) < 500:
+        random_lat, random_lon = generate_random_point(center_lat, center_lon, max_distance)
+        distance = calculate_distance(center_lat, center_lon, random_lat, random_lon)
+        if distance <= max_distance:
+            origin_points.append((random_lat, random_lon))
+
+    # 为每个起点生成500个终点
+    for origin_point in origin_points:
+        destination_points=[]
+        while len(destination_points) < 500:
+            random_lat, random_lon = generate_random_point(center_lat, center_lon, max_distance)
+            center_distance = calculate_distance(center_lat, center_lon, random_lat, random_lon)
+            od_distance=calculate_distance(origin_point[0], origin_point[1], random_lat, random_lon)
+            if center_distance <= max_distance and od_distance>=min_distance:
+                destination_points.append((random_lat, random_lon))
+            od_pair[origin_point]=destination_points
+    return od_pair
 def generate_data():
     #origin = '113.405427,23.048538'  # 华工大学城校区
     #destination = '116.587922,40.081577'  # 华工五山校区
     #destination = '113.390579,23.065123'  # 中山大学东校区
-    for i in range(100000):
+    od_pair = generate_od_pair()
+    origin_points = od_pair.keys()
+
+    for origin_point in origin_points:
         # 获取当前时间
         now = datetime.now()
         # 提取时、分、秒
@@ -183,26 +239,29 @@ def generate_data():
         minute = now.minute
         second = now.second
         current = f'{hour}:{minute}:{second}'
-        origin=generate_point()
-        destination=generate_point()
-        output = 'json'
-        key = 'b04b0ec7d62dfcc0a4f87f35600f009d'
-        walking_data = direction_walking(origin, destination, output, key)
-        transit_data = direction_transit(origin, destination, output, "广州", key)
-        driving_data = direction_driving(origin, destination, output, key, 0)
-        bicycling_data = direction_bicycling(origin, destination, output, key)
-        data = {
-            "time": current,
-            "origin": origin,
-            "destination": destination,
-            "walking_data": walking_data,
-            "transit_data": transit_data,
-            "driving_data": driving_data,
-            "bicycling_data": bicycling_data
-        }
-        print(data)
-        with open("data.json", "a") as file:
-            json.dump(data, file)
-        time.sleep(30)
+        origin=f'{origin_point[0]},{origin_point[1]}'
+        destination_points=od_pair[origin_point]
+        for destination_point in destination_points:
+            destination=f'{destination_point[0]},{destination_point[1]}'
+            # print(origin,destination)
+            output = 'json'
+            key = 'b04b0ec7d62dfcc0a4f87f35600f009d'
+            walking_data = direction_walking(origin, destination, output, key)
+            transit_data = direction_transit(origin, destination, output, "广州", key)
+            driving_data = direction_driving(origin, destination, output, key, 0)
+            bicycling_data = direction_bicycling(origin, destination, output, key)
+            data = {
+                "time": current,
+                "origin": origin,
+                "destination": destination,
+                "walking_data": walking_data,
+                "transit_data": transit_data,
+                "driving_data": driving_data,
+                "bicycling_data": bicycling_data
+            }
+            print(data)
+            with open("data.json", "a") as file:
+                json.dump(data, file)
+        time.sleep(random.randint(1,3))
 if __name__=='__main__':
     generate_data()
