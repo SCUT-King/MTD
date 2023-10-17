@@ -4,19 +4,40 @@ import requests
 import json
 from datetime import datetime
 import random
+# 封装发送请求的函数，用于处理错误请求
+def get_response_json(url):
+    max_retries = 100
+    if url.find("walking")!=-1 or url.find("transit")!=-1 or url.find("driving")!=-1:
+        retries=1
+        while retries<=max_retries:
+            try:
+                response_json = requests.get(url=url).json()
+                status = response_json['status'] # 值为0或1 1：成功；0：失败
+                if status=="1":
+                    return response_json
+            except:
+                print(f"请求出错， 尝试第 {retries}/{max_retries} 次重连中...")
+                retries+=1
+        exit(0)
+    else:
+        retries=1
+        while retries<=max_retries:
+            try:
+                response_json = requests.get(url=url).json()
+                if "errcode" in response_json.keys():
+                    errcode = response_json['errcode'] # 值为0或1 0：成功；1：失败
+                    if errcode=="0":
+                        return response_json
+            except:
+                print(f"请求出错， 尝试第 {retries}/{max_retries} 次重连中...")
+                retries+=1
+        exit(0)
 #01 walking
 def direction_walking(origin,destination,output,key):
     url=f'https://restapi.amap.com/v3/direction/walking?origin={origin}&destination={destination}&output={output}&key={key}'
-    #print(url)
-    response = requests.get(url)
-    data = response.json()
+    data = get_response_json(url)
     #print(data)
     # 处理 JSON 数据
-    status=data['status'] #值为0或1 1：成功；0：失败
-    info=data['info'] #	status为0时，info返回错误原；否则返回“OK”。详情参阅info状态表
-    if status=='0':
-        print('错误原因 '+info)
-        return {"origin":origin,"destination":destination,"way":"walking","info":info}
     count=data['count'] #结果总数目
     route=data['route'] #路线信息列表
     origin=route['origin']
@@ -40,22 +61,14 @@ def direction_walking(origin,destination,output,key):
             "polyline":steps
         }
         mypaths.append(path)
-    return {"origin":origin,"destination":destination,"way":"walking",
-             "info":info,"paths":mypaths}
+    return {"origin":origin,"destination":destination,"way":"walking","paths":mypaths}
 #02 transit
 def direction_transit(origin,destination,output,city,key):
     url=f'https://restapi.amap.com/v3/direction/transit/integrated?key={key}&origin={origin}&destination={destination}&output={output}&city={city}&cityd={city}&strategy=0&nightflag=0'
     #print(url)
-    response = requests.get(url)
-    data = response.json()
+    data = get_response_json(url)
     #print(data)
     # 处理 JSON 数据
-    status=data['status'] #值为0或1 1：成功；0：失败
-    info=data['info'] #	status为0时，info返回错误原；否则返回“OK”。详情参阅info状态表
-    if status=='0':
-        print('错误原因 '+info)
-        return {"origin": origin, "destination": destination, "way": "transit", "info": info}
-
     count=int(data['count']) #公交换乘方案数目
     route=data['route'] #公交换乘信息列表
     origin=route['origin']
@@ -79,21 +92,14 @@ def direction_transit(origin,destination,output,city,key):
             entrance=segment['entrance']#地铁入口
             exit=segment['exit']#地铁出口
             railway=segment['railway']#乘坐火车的信息
-    return {"origin":origin,"destination":destination,"way":"transit",
-             "info":info,"route":route}
+    return {"origin":origin,"destination":destination,"way":"transit","route":route}
 #03 driving
 def direction_driving(origin,destination,output,key,strategy):
     url=f'https://restapi.amap.com/v3/direction/driving?origin={origin}&destination={destination}&output={output}&key={key}&strategy={strategy}&waypoints=&extensions=base'
     #print(url)
-    response = requests.get(url)
-    data = response.json()
+    data = get_response_json()
     #print(data)
     # 处理 JSON 数据
-    status=data['status'] #值为0或1 1：成功；0：失败
-    info=data['info'] #	status为0时，info返回错误原；否则返回“OK”。详情参阅info状态表
-    if status=='0':
-        print('错误原因 '+info)
-        return {"origin":origin,"destination":destination,"way":"driving","info":info}
     count=data['count'] #结果总数目
     route=data['route'] #路线信息列表
     origin=route['origin']
@@ -120,22 +126,14 @@ def direction_driving(origin,destination,output,key,strategy):
             "polyline": steps
         }
         mypaths.append(path)
-    return {"origin":origin,"destination":destination,"way":"driving",
-             "info":info,"paths":mypaths}
+    return {"origin":origin,"destination":destination,"way":"driving","paths":mypaths}
 #04 bicycling
 def direction_bicycling(origin,destination,output,key):
     url=f'https://restapi.amap.com/v4/direction/bicycling?origin={origin}&destination={destination}&key={key}'
     #print(url)
-    response = requests.get(url)
-    data = response.json()
+    data = get_response_json(url)
     #print(data)
     # 处理 JSON 数据
-    errcode=data['errcode'] #0，表示成功
-    errdetail=data['errdetail']
-    errmsg=data['errmsg']
-    if errcode!=0:
-        print('错误原因 '+errdetail)
-        return {"origin": origin, "destination": destination, "way": "bicycling","info": errmsg}
     destination=data['data']['destination']
     origin=data['data']['origin']
     paths=data['data']['paths']
@@ -158,8 +156,7 @@ def direction_bicycling(origin,destination,output,key):
             "polyline": steps
         }
         mypaths.append(path)
-    return {"origin":origin,"destination":destination,"way":"bicycling",
-             "info":errmsg,"paths":mypaths}
+    return {"origin":origin,"destination":destination,"way":"bicycling","paths":mypaths}
 def calculate_distance(lat1, lon1, lat2, lon2):
     # 将经纬度转换为弧度
     lat1 = math.radians(lat1)
@@ -193,8 +190,8 @@ def generate_random_point(center_lat, center_lon, max_distance):
                                                  math.cos(random_distance_rad) - math.sin(center_lat_rad) * math.sin(random_lat_rad))
 
     # 将随机点的纬度和经度转换为度数,小数点后保留6位
-    random_lat = round(math.degrees(random_lat_rad),6)
-    random_lon = round(math.degrees(random_lon_rad),6)
+    random_lat = round(math.degrees(random_lat_rad), 6)
+    random_lon = round(math.degrees(random_lon_rad), 6)
 
     return random_lat, random_lon
 def generate_od_pair():
