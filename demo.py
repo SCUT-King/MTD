@@ -192,9 +192,9 @@ def generate_random_point(center_lat, center_lon, max_distance):
     random_lon_rad = center_lon_rad + math.atan2(math.sin(random_bearing_rad) * math.sin(random_distance_rad) * math.cos(center_lat_rad),
                                                  math.cos(random_distance_rad) - math.sin(center_lat_rad) * math.sin(random_lat_rad))
 
-    # 将随机点的纬度和经度转换为度数
-    random_lat = math.degrees(random_lat_rad)
-    random_lon = math.degrees(random_lon_rad)
+    # 将随机点的纬度和经度转换为度数,小数点后保留6位
+    random_lat = round(math.degrees(random_lat_rad),6)
+    random_lon = round(math.degrees(random_lon_rad),6)
 
     return random_lat, random_lon
 def generate_od_pair():
