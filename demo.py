@@ -14,6 +14,7 @@ def get_response_json(url):
                 response_json = requests.get(url=url).json()
                 status = response_json['status'] # 值为0或1 1：成功；0：失败
                 if status=="1":
+                    print(response_json)
                     return response_json
             except:
                 print(f"请求出错， 尝试第 {retries}/{max_retries} 次重连中...")
@@ -24,17 +25,17 @@ def get_response_json(url):
         while retries<=max_retries:
             try:
                 response_json = requests.get(url=url).json()
-                if "errcode" in response_json.keys():
-                    errcode = response_json['errcode'] # 值为0或1 0：成功；1：失败
-                    if errcode=="0":
-                        return response_json
+                errcode = response_json['errcode'] # 值为0或1 0：成功；1：失败
+                if errcode==0:
+                    return response_json
             except:
-                print(f"请求出错， 尝试第 {retries}/{max_retries} 次重连中...")
+                print(f"bicycling 请求出错， 尝试第 {retries}/{max_retries} 次重连中...")
                 retries+=1
         exit(0)
 #01 walking
 def direction_walking(origin,destination,output,key):
     url=f'https://restapi.amap.com/v3/direction/walking?origin={origin}&destination={destination}&output={output}&key={key}'
+    #print(url)
     data = get_response_json(url)
     #print(data)
     # 处理 JSON 数据
@@ -97,7 +98,7 @@ def direction_transit(origin,destination,output,city,key):
 def direction_driving(origin,destination,output,key,strategy):
     url=f'https://restapi.amap.com/v3/direction/driving?origin={origin}&destination={destination}&output={output}&key={key}&strategy={strategy}&waypoints=&extensions=base'
     #print(url)
-    data = get_response_json()
+    data = get_response_json(url)
     #print(data)
     # 处理 JSON 数据
     count=data['count'] #结果总数目
@@ -236,10 +237,10 @@ def generate_data():
         minute = now.minute
         second = now.second
         current = f'{hour}:{minute}:{second}'
-        origin=f'{origin_point[0]},{origin_point[1]}'
+        origin=f'{origin_point[1]},{origin_point[0]}'
         destination_points=od_pair[origin_point]
         for destination_point in destination_points:
-            destination=f'{destination_point[0]},{destination_point[1]}'
+            destination=f'{destination_point[1]},{destination_point[0]}'
             # print(origin,destination)
             output = 'json'
             key = 'b04b0ec7d62dfcc0a4f87f35600f009d'
@@ -256,9 +257,9 @@ def generate_data():
                 "driving_data": driving_data,
                 "bicycling_data": bicycling_data
             }
-            print(data)
+            #print(data)
             with open("data.json", "a") as file:
-                json.dump(data, file)
+                json.dump(obj=data, fp=file,separators=",")
         time.sleep(random.randint(1,3))
 if __name__=='__main__':
     generate_data()
