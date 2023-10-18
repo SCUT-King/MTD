@@ -27,6 +27,7 @@ def get_response_json(url):
                 response_json = requests.get(url=url).json()
                 errcode = response_json['errcode'] # 值为0或1 0：成功；1：失败
                 if errcode==0:
+                    print(response_json)
                     return response_json
             except:
                 print(f"bicycling 请求出错， 尝试第 {retries}/{max_retries} 次重连中...")
@@ -259,7 +260,8 @@ def generate_data():
             }
             #print(data)
             with open("data.json", "a") as file:
-                json.dump(obj=data, fp=file,separators=",")
+                json.dump(obj=data, fp=file,separators=(",",":"))
+                file.write(",\n")
         time.sleep(random.randint(1,3))
 if __name__=='__main__':
     generate_data()
