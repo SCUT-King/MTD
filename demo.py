@@ -4,7 +4,7 @@ import requests
 import json
 from datetime import datetime
 import random
-# 封装发送请求的函数，用于处理错误请求
+# 封装发送请求的函数，含处理错误请求
 def get_response_json(url):
     max_retries = 100
     if url.find("walking")!=-1 or url.find("transit")!=-1 or url.find("driving")!=-1:
@@ -65,36 +65,96 @@ def direction_walking(origin,destination,output,key):
         mypaths.append(path)
     return {"origin":origin,"destination":destination,"way":"walking","paths":mypaths}
 #02 transit
-def direction_transit(origin,destination,output,city,key):
-    url=f'https://restapi.amap.com/v3/direction/transit/integrated?key={key}&origin={origin}&destination={destination}&output={output}&city={city}&cityd={city}&strategy=0&nightflag=0'
-    #print(url)
+def direction_transit(origin, destination, output, city, key):
+    url = f'https://restapi.amap.com/v3/direction/transit/integrated?key={key}&origin={origin}&destination={destination}&output={output}&city={city}&cityd={city}&strategy=0&nightflag=0'
+    # print(url)
     data = get_response_json(url)
-    #print(data)
+    # print(data)
     # 处理 JSON 数据
-    count=int(data['count']) #公交换乘方案数目
-    route=data['route'] #公交换乘信息列表
-    origin=route['origin']
-    destination=route['destination']
-    od_walking_distance=route['distance']  #起点和终点的步行距离
-    taxi_cost=route['taxi_cost']
-    transits=route['transits']
-    #遍历显示各种公交换乘方案
+    count = int(data['count'])  # 公交换乘方案数目
+    route = data['route']  # 公交换乘信息列表
+    origin = route['origin']
+    destination = route['destination']
+    od_walking_distance = route['distance']  # 起点和终点的步行距离
+    taxi_cost = route['taxi_cost']
+    transits = route['transits']  # 公交换乘方案列表
+    my_transits = []  # 公交换乘方案列表
+    # 遍历显示各种公交换乘方案
     for transit in transits:
-        cost=transit['cost']
-        duration=transit['duration']
-        nightflag=transit['nightflag']
-        walking_distance=transit['walking_distance']
-        distance=transit['distance']
-        missed=transit['missed']
-        segments=transit['segments']
+        cost = transit['cost']
+        duration = transit['duration']
+        nightflag = transit['nightflag']
+        walking_distance = transit['walking_distance']
+        distance = transit['distance']
+        missed = transit['missed']
+        segments = transit['segments']
+        transit_data=[]
         for segment in segments:
-            taxi=segment['taxi']
-            walking=segment['walking']#此路段步行导航信息
-            bus=segment['bus']#此路段公交导航信息
-            entrance=segment['entrance']#地铁入口
-            exit=segment['exit']#地铁出口
-            railway=segment['railway']#乘坐火车的信息
-    return {"origin":origin,"destination":destination,"way":"transit","route":route}
+            taxi = segment['taxi']
+            walking = segment['walking']  # 此路段步行导航信息
+            segment_walking_data={}
+            if len(walking)!=0:
+                walking_origin = walking["origin"]
+                walking_destination = walking["destination"]
+                walking_distance = walking["distance"]
+                walking_duration = walking["duration"]
+                walking_steps = walking["steps"]
+                walking_polyline = []  # 存储此步行方案所有的坐标点
+                for step in walking_steps:
+                    step_polyline = step['polyline']  # 此路段坐标点
+                    walking_polyline.extend(step_polyline.split(';'))
+                walking_polyline = ";".join(walking_polyline)
+                segment_walking_data = {
+                    "origin": walking_origin,
+                    "destination": walking_destination,
+                    "distance": walking_distance,
+                    "duration": walking_duration,
+                    "polyline": walking_polyline
+                }
+            bus = segment['bus']  # 此路段公交导航信息
+            buslines = bus["buslines"]
+            buslines_data = {}
+            if len(buslines)!=0:
+                for busline in buslines:
+                    departure_stop = busline["departure_stop"]
+                    arrival_stop = busline["arrival_stop"]
+                    bus_polyline = busline["polyline"]
+                    bus_type=busline["type"]
+                    bus_duration=busline["duration"]
+                    bus_distance=busline["distance"]
+                    buslines_data={
+                        "departure_stop": departure_stop,
+                        "arrival_stop": arrival_stop,
+                        "type": bus_type,
+                        "duration":bus_duration,
+                        "distance":bus_distance,
+                        "bus_polyline": bus_polyline
+                    }
+            segment_bus_data = buslines_data
+
+            entrance = segment['entrance']  # 地铁入口
+            exit = segment['exit']  # 地铁出口
+            railway = segment['railway']  # 乘坐火车的信息
+            segment_railway_data = {}
+            if "time" in railway.keys():
+                railway_time = railway["time"]
+                railway_distance = railway["distance"]
+                railway_origin = railway["departure_stop"]
+                railway_destination = railway["arrival_stop"]
+                segment_railway_data = {
+                    "time": railway_time,
+                    "distance": railway_distance,
+                    "origin": railway_origin,
+                    "destination": railway_destination
+                }
+            transit_data.append({
+                "walking":segment_walking_data,
+                "bus":segment_bus_data,
+                "railway":segment_railway_data
+            })
+        my_transits.append(transit_data)
+
+    return {"origin": origin, "destination": destination, "way": "transit", "transits": my_transits}
 #03 driving
 def direction_driving(origin,destination,output,key,strategy):
     url=f'https://restapi.amap.com/v3/direction/driving?origin={origin}&destination={destination}&output={output}&key={key}&strategy={strategy}&waypoints=&extensions=base'
@@ -201,21 +261,21 @@ def generate_od_pair():
     center_lat = 23.1192
     center_lon = 113.3212
 
-    # 生成500个距离中心点5公里以内的随机点,作为起点
+    # 生成150个距离中心点5公里以内的随机点,作为起点
     origin_points = [] # 起点
     od_pair={}        # od对
     max_distance = 5  # 最大距离为5公里
     min_distance = 1  # 起点终点之间相距最小距离1公里
-    while len(origin_points) < 500:
+    while len(origin_points) < 150:
         random_lat, random_lon = generate_random_point(center_lat, center_lon, max_distance)
         distance = calculate_distance(center_lat, center_lon, random_lat, random_lon)
         if distance <= max_distance:
             origin_points.append((random_lat, random_lon))
 
-    # 为每个起点生成500个终点
+    # 为每个起点生成150个终点
     for origin_point in origin_points:
         destination_points=[]
-        while len(destination_points) < 500:
+        while len(destination_points) < 150:
             random_lat, random_lon = generate_random_point(center_lat, center_lon, max_distance)
             center_distance = calculate_distance(center_lat, center_lon, random_lat, random_lon)
             od_distance=calculate_distance(origin_point[0], origin_point[1], random_lat, random_lon)
@@ -232,12 +292,8 @@ def generate_data():
 
     for origin_point in origin_points:
         # 获取当前时间
-        now = datetime.now()
-        # 提取时、分、秒
-        hour = now.hour
-        minute = now.minute
-        second = now.second
-        current = f'{hour}:{minute}:{second}'
+        now = datetime.now()        # 提取时、分、秒
+        current = now.strftime("%Y-%m-%d %H:%M:%S")
         origin=f'{origin_point[1]},{origin_point[0]}'
         destination_points=od_pair[origin_point]
         for destination_point in destination_points:
@@ -259,8 +315,8 @@ def generate_data():
                 "bicycling_data": bicycling_data
             }
             #print(data)
-            with open("data.json", "a") as file:
-                json.dump(obj=data, fp=file,separators=(",",":"))
+            with open("data.json", "a", encoding="utf-8") as file:
+                json.dump(obj=data, fp=file, ensure_ascii=False)#保留中文字符
                 file.write(",\n")
         time.sleep(random.randint(1,3))
 if __name__=='__main__':
