@@ -63,7 +63,7 @@ def direction_walking(origin,destination,output,key):
             "polyline":steps
         }
         mypaths.append(path)
-    return {"origin":origin,"destination":destination,"way":"walking","paths":mypaths}
+    return {"paths":mypaths}
 #02 transit
 def direction_transit(origin, destination, output, city, key):
     url = f'https://restapi.amap.com/v3/direction/transit/integrated?key={key}&origin={origin}&destination={destination}&output={output}&city={city}&cityd={city}&strategy=0&nightflag=0'
@@ -132,7 +132,7 @@ def direction_transit(origin, destination, output, city, key):
                         "distance":bus_distance,
                         "start_time":bus_start_time,
                         "end_time":bus_end_time,
-                        "bus_polyline": bus_polyline
+                        "polyline": bus_polyline
                     }
                     buslines_data.append(busline_data)
             segment_bus_data = buslines_data
@@ -147,10 +147,10 @@ def direction_transit(origin, destination, output, city, key):
                 railway_origin = railway["departure_stop"]
                 railway_destination = railway["arrival_stop"]
                 segment_railway_data = {
-                    "time": railway_time,
+                    "duration": railway_time,
                     "distance": railway_distance,
-                    "origin": railway_origin,
-                    "destination": railway_destination
+                    "departure_stop": railway_origin,
+                    "arrival_stop": railway_destination
                 }
             transit_data.append({
                 "walking":segment_walking_data,
@@ -159,7 +159,7 @@ def direction_transit(origin, destination, output, city, key):
             })
         my_transits.append(transit_data)
 
-    return {"origin": origin, "destination": destination, "way": "transit", "transits": my_transits}
+    return {"transits": my_transits}
 #03 driving
 def direction_driving(origin,destination,output,key,strategy):
     url=f'https://restapi.amap.com/v3/direction/driving?origin={origin}&destination={destination}&output={output}&key={key}&strategy={strategy}&waypoints=&extensions=base'
@@ -193,7 +193,7 @@ def direction_driving(origin,destination,output,key,strategy):
             "polyline": steps
         }
         mypaths.append(path)
-    return {"origin":origin,"destination":destination,"way":"driving","paths":mypaths}
+    return {"paths":mypaths}
 #04 bicycling
 def direction_bicycling(origin,destination,output,key):
     url=f'https://restapi.amap.com/v4/direction/bicycling?origin={origin}&destination={destination}&key={key}'
@@ -223,7 +223,7 @@ def direction_bicycling(origin,destination,output,key):
             "polyline": steps
         }
         mypaths.append(path)
-    return {"origin":origin,"destination":destination,"way":"bicycling","paths":mypaths}
+    return {"paths":mypaths}
 def calculate_distance(lat1, lon1, lat2, lon2):
     # 将经纬度转换为弧度
     lat1 = math.radians(lat1)
@@ -315,9 +315,9 @@ def generate_data():
                 "origin": origin,
                 "destination": destination,
                 "walking_data": walking_data,
-                "transit_data": transit_data,
+                "bicycling_data": bicycling_data,
                 "driving_data": driving_data,
-                "bicycling_data": bicycling_data
+                "transit_data": transit_data
             }
             #print(data)
             with open("data.json", "a", encoding="utf-8") as file:
