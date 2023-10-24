@@ -113,7 +113,7 @@ def direction_transit(origin, destination, output, city, key):
                 }
             bus = segment['bus']  # 此路段公交导航信息
             buslines = bus["buslines"]
-            buslines_data = {}
+            buslines_data = []
             if len(buslines)!=0:
                 for busline in buslines:
                     departure_stop = busline["departure_stop"]
@@ -122,14 +122,19 @@ def direction_transit(origin, destination, output, city, key):
                     bus_type=busline["type"]
                     bus_duration=busline["duration"]
                     bus_distance=busline["distance"]
-                    buslines_data={
+                    bus_start_time=busline["start_time"]
+                    bus_end_time=busline["end_time"]
+                    busline_data={
                         "departure_stop": departure_stop,
                         "arrival_stop": arrival_stop,
                         "type": bus_type,
                         "duration":bus_duration,
                         "distance":bus_distance,
+                        "start_time":bus_start_time,
+                        "end_time":bus_end_time,
                         "bus_polyline": bus_polyline
                     }
+                    buslines_data.append(busline_data)
             segment_bus_data = buslines_data
 
             entrance = segment['entrance']  # 地铁入口
