@@ -1,9 +1,23 @@
+import pickle
 import time
 import math
 import requests
 import json
+import os
+from collections import OrderedDict
+from itertools import islice
 from datetime import datetime
 import random
+def isFileExist(filename):
+    # 获取当前目录
+    current_directory = os.getcwd()
+    # 拼接文件路径
+    file_path = os.path.join(current_directory, filename)
+    # 判断文件是否存在
+    if os.path.exists(file_path):
+        return True
+    else:
+        return False
 # 封装发送请求的函数，含处理错误请求
 def get_response_json(url):
     max_retries = 100
@@ -274,7 +288,7 @@ def generate_od_pair():
     while len(origin_points) < 150:
         random_lat, random_lon = generate_random_point(center_lat, center_lon, max_distance)
         distance = calculate_distance(center_lat, center_lon, random_lat, random_lon)
-        if distance <= max_distance:
+        if distance <= max_distance and (random_lat, random_lon) not in origin_points:
             origin_points.append((random_lat, random_lon))
 
     # 为每个起点生成150个终点
@@ -284,23 +298,33 @@ def generate_od_pair():
             random_lat, random_lon = generate_random_point(center_lat, center_lon, max_distance)
             center_distance = calculate_distance(center_lat, center_lon, random_lat, random_lon)
             od_distance=calculate_distance(origin_point[0], origin_point[1], random_lat, random_lon)
-            if center_distance <= max_distance and od_distance>=min_distance:
+            if center_distance <= max_distance and od_distance>=min_distance and (random_lat, random_lon) not in destination_points:
                 destination_points.append((random_lat, random_lon))
             od_pair[origin_point]=destination_points
     return od_pair
-def generate_data():
+def generate_data(start_index, end_index):
     #origin = '113.405427,23.048538'  # 华工大学城校区
     #destination = '116.587922,40.081577'  # 华工五山校区
     #destination = '113.390579,23.065123'  # 中山大学东校区
-    od_pair = generate_od_pair()
-    origin_points = od_pair.keys()
+    if not(isFileExist('od_pairs.pickle')):        #判断是否为第一次运行
+        od_pairs=generate_od_pair()
+        with open('od_pairs.pickle', 'wb') as file:
+            pickle.dump(od_pairs, file)
+
+    # 从文件中读取字典
+    with open('od_pairs.pickle', 'rb') as file:
+        loaded_dict = pickle.load(file)
+        # 创建包含150个键的有序字典
+        od_pairs = OrderedDict(loaded_dict)
+
+    origin_points = list(islice(od_pairs.keys(),start_index, end_index))
 
     for origin_point in origin_points:
         # 获取当前时间
         now = datetime.now()        # 提取时、分、秒
         current = now.strftime("%Y-%m-%d %H:%M:%S")
         origin=f'{origin_point[1]},{origin_point[0]}'
-        destination_points=od_pair[origin_point]
+        destination_points=od_pairs[origin_point]
         for destination_point in destination_points:
             destination=f'{destination_point[1]},{destination_point[0]}'
             # print(origin,destination)
@@ -325,4 +349,4 @@ def generate_data():
                 file.write(",\n")
         time.sleep(random.randint(1,3))
 if __name__=='__main__':
-    generate_data()
+    generate_data(0,30)#前闭后开
